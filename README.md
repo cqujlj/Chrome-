@@ -44,8 +44,29 @@
     绘制浏览器顶部按钮、导航栏输入框等组件的UI线程 UI thread
     管理网络请求的网络进程 network thread
     控制文件读写的存储线程 storage thread等.........
-##### 1、处理输入 UI thread
+#### 1、处理输入 UI thread
   当导航栏输入，输入可能是请求的域名/搜索内容的关键字
   UI thread进行一系列的解析来判定是“将用户输入发送给搜索引擎”还是“直接请求你输入的站点资源”
-##### 2、开始导航 network thread（进行DNS寻址、简历TSL连接等）
+#### 2、开始导航 network thread（进行DNS寻址、简历TSL连接等）
   当用户按下Enter，UI thread会叫network thread初始化一个网络请求来获取站点的内容
+  若网络线程收到服务器的HTTP301重定向响应，它会告知UI线程进行重定向然后再次发起网络请求
+#### 3、读取响应
+  network thread 收到HTTP响应的主题流（payload stream）之后，先检查stream的前几个字节以确定响应主题的媒体类型
+  一般通过HTTP头部的content-type来确定 或者MIME类型嗅探
+    · 若响应主体是HTML文件---> 浏览器获取响应数据给renderer thread
+    · 若响应主体是压缩文件---> 交给下载管理器处理
+#### 4、寻找一个renderer thread来渲染界面
+  network thread对数据进行safeBrowsing检查 CORB跨域敏感数据检查后，
+  能够确定浏览器应该导航到该请求的站点，它就会告诉UI线程所有的数据都已经被准备好
+  UI thread 在收到网络线程的确认后会为这个网站寻找一个渲染进程（renderer process）来渲染界面
+##### 优化策略：为了缩短navagitor时间，进行优化
+  在UI thread解析URL发给network thread的过程中，UI thread同事为该网络请求启动一个renderer thread
+  · 若数据请求顺利，则能立即渲染
+  · 若发生重定向，则摒弃该renderer thread，重新启动一个新的renderer thread
+#### 5、提交导航 commit navigation
+  当数据和渲染线程都OK：
+    · 则Browser thread通过IPC(Inter Process Communication)告诉renderer thread去commit
+    · 将刚收到的响应数据流传递给对应的renderer thread让它继续接受HTML数据
+    · Browser thread收到renderer thread的回复说导航已经commit，则navigation过程结束；文档加载阶段正式开始
+  当导航栏被更新，安全指示符security indicator、站点设置UI会展示新页面相关的站点信息
+  当前站点的历史纪录也会被更新；当关闭当前tab，历史记录会被存储到磁盘上
