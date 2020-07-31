@@ -81,3 +81,40 @@
   renderer process先检查是否注册beforeunload
    若有：执行beforeunload，执行完之后进行一次navigator(此次的导航请求是由renderer process给browser process发起的)
    若导航到不同站点：浏览器进程告诉新的 renderer process 去渲染新的页面并且告诉当前的 renderer process 进行收尾工作
+### 四、Service Worker 
+  Service Worker 是浏览器在后台独立于网页运行的脚本，是独立于页面的一个运行环境，它在页面关闭后仍可以运行
+  包括推送通知和后台同步等功能；不需要网页或用户交互的功能，
+##### Service Worker 通过响应 postMessage 接口发送的消息来与其控制的页面通信，页面可在必要时对 DOM 执行操作
+      service worker在注册的时候，它的作用范围（scope）会被记录下来
+      在导航开始的时候，网络线程会根据请求的域名在已经注册的service worker作用范围里面寻找有没有对应的service worker。
+        · 如果有命中该URL的service worker，UI线程就会为这个service worker启动一个renderer process 来执行它的代码。
+        · Service worker既可能使用之前缓存的数据也可能发起新的网络请求
+##### 导航预加载 navigation preload
+  通过在service worker启动时并行加载对应的资源得方式来加快整个导航过程的效率
+  预加载资源的请求头会有一些特殊的标志来让服务器决定是发送全新的内容给客户端还是仅仅发送更新了的数据给客户端
+### 五、渲染进程
+#### 1、构造dom
+  渲染进程开始接收HTML数据，同时主线程也会开始解析接收到的文本数据（text string）并把它转化为一个DOM（Document Object Model）对象
+  DOM对象：是浏览器对当前页面的内部表示，也是Web开发人员通过JavaScript与网页进行交互的数据结构以及API
+#### 2、加载CSS和JavaScript等资源
+  浏览器会同时运行“预加载扫描”（preload scanner）程序
+  预加载扫描程序会在HTML解析器生成的token里面找到对应要获取的资源，并把这些要获取的资源告诉浏览器进程里面的网络线程
+###### JavaScript会阻塞HTML的解析过程：
+      因为script标签中的JavaScript可能会改变文档流（document）的形状，从而使整个DOM树的结构发生根本性的改变
+      优化：在DOM和CSS渲染之后加载js文件，例如在尾部加载js文件，或者使用该元素属性defer和async，进行js问价异步加载
+###### 由于CSS决定了DOM元素的样式、布局，所以浏览器遇到CSS文件时会等待CSS文件加载并解析完后才继续渲染页面
+  尽可能早的提前引入css文件，例如在头部引入css文件；
+  尽可能早的加载css文件中的引入的资源，例如自定义字体文件，可以使用预加载，在link标签中加入rel=“preload” as = “font”该元素属性，不会造成渲染阻塞
+#### 3、计算样式
+  主线程会解析页面的CSS从而确定每个DOM节点的计算样式（computed style）。
+  计算样式是主线程根据CSS样式选择器（CSS selectors）计算出的每个DOM元素应该具备的具体样式
+  note：每个浏览器都有自己的默认样式表
+#### 4、布局
+  主线程会遍历刚刚构建的DOM树，根据DOM节点的计算样式计算出一个布局树；即计算RenderObject树中的元素的尺寸，位置等
+  布局树上每个节点会有它在页面上的x，y坐标以及盒子大小（bounding box sizes）的具体信息
+  note：被设置为display:none的节点，不可见 不会出现在布局树上面； 被设置为visibility:hidden的节点，会出现在布局树上面
+        如果一个伪元素（pseudo class）节点有诸如p::before{.....}，它会出现在布局上，而不存在于DOM树上
+#### 5、绘制：绘制页面的像素信息
+  主线程会遍历之前得到的布局树（layout tree）来生成一系列的绘画记录（paint records）。绘画记录是对绘画过程的注释   
+   
+   
