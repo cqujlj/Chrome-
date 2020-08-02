@@ -146,6 +146,19 @@
         · 如果输入事件不是发生在非快速滚动区域，合成线程就无须主线程的参与来合成一个新的帧
 ###### note：给body元素绑定了事件监听器后其实是将整个页面都标记为一个非快速滚动区域**
          解决方法：为事件监听器传递passive：true选项，告诉浏览器您仍要在主线程中侦听事件，合成线程也可以继续合成新的帧
-###### 5、查找事件的目标对象（event target）
+###### 3、查找事件的目标对象（event target）
         当合成线程向主线程发送输入事件时，主线程要通过 ** 命中测试 ** 去找到事件的目标对象（target）。
         命中测试流程:遍历在渲染流水线中生成的绘画记录来找到输入事件出现的x, y坐标上面描绘的对象
+##### 4、最小化
+        输入事件的触发频率其实远远高于我们屏幕的刷新频率（60次/s）
+        Chrome会合并连续事件（例如wheel，mousewheel，mousemove，pointermove，touchmove），将调度延迟到下一个requestAnimationFrame之前 --> 减少对主线程的过多调用
+        相对不怎么频繁发生的事件都会被立即派送给主线程
+##### 使用鼠标事件的getCoalescedEvents来获取被合成的事件的详细信息
+        window.addEventListener('pointermove', event => {
+            const events = event.getCoalescedEvents();
+            for (let event of events) {
+                const x = event.pageX;
+                const y = event.pageY;
+                // draw a line using x and y coordinates.
+            }
+        });
