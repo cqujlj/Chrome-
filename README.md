@@ -149,9 +149,10 @@
 ###### 3、查找事件的目标对象（event target）
         当合成线程向主线程发送输入事件时，主线程要通过 ** 命中测试 ** 去找到事件的目标对象（target）。
         命中测试流程:遍历在渲染流水线中生成的绘画记录来找到输入事件出现的x, y坐标上面描绘的对象
-##### 4、最小化
+##### 4、最小化发送给主线程的事件数
         输入事件的触发频率其实远远高于我们屏幕的刷新频率（60次/s）
-        Chrome会合并连续事件（例如wheel，mousewheel，mousemove，pointermove，touchmove），将调度延迟到下一个requestAnimationFrame之前 --> 减少对主线程的过多调用
+        Chrome会合并连续事件（例如wheel，mousewheel，mousemove，pointermove，touchmove），将调度延迟到下一个requestAnimationFrame之前 
+            --> 减少对主线程的过多调用
         相对不怎么频繁发生的事件都会被立即派送给主线程
 ##### 使用鼠标事件的getCoalescedEvents来获取被合成的事件的详细信息
         window.addEventListener('pointermove', event => {
